@@ -14,7 +14,7 @@ def preprocessor(frame):
 
 class Inference:
     def __init__(self, model, path):
-        self.session = onnxruntime.InferenceSession(model, providers=["CPUExecutionProvider"])
+        self.session = onnxruntime.InferenceSession(model, providers=["CUDAExecutionProvider"])
         model_inputs = self.session.get_inputs()
         input_shape = model_inputs[0].shape
         self.path = path
@@ -107,19 +107,25 @@ class Inference:
         while True:
             c_time = time.time()
             ret, frame = cap.read()
+            if not ret or frame is None:
+                print("End of video stream or unable to read the frame.")
+                print("Average Frame time:", 1000/ (total/idx))
+                break
             frame = self.pipeline(frame)
             fps = 1 / (c_time - p_time)
             p_time = c_time
             idx = idx + 1
             total = total+fps
             avg =total/idx
+            # avg_time = 1000/avg
 
 
             cv2.putText(frame, "Current FPS:"+str(int(fps)), (10, 350), cv2.FONT_HERSHEY_PLAIN, 3,
                         (255, 255, 0), 3)
             cv2.putText(frame, "Average FPS:" + str(int(avg)), (10, 400), cv2.FONT_HERSHEY_PLAIN, 3,
                         (255, 255, 0), 3)
-
+            # cv2.putText(frame, "Average Frame time:" + str(avg_time), (10, 450), cv2.FONT_HERSHEY_PLAIN, 3,
+            #             (255, 255, 0), 3)
             # resized_frame = cv2.resize(frame, (1920, 1080))
             cv2.imshow('frame', frame)
 
@@ -130,7 +136,12 @@ class Inference:
         cv2.destroyAllWindows()
 
 
-model = 'models/static_quantized.onnx'
+model = 'models/yolov8n.onnx'
+model_quant = 'models/static_quantized.onnx'
 path = 'test.webm'
+print("Running inference on the original model")
 x = Inference(model, path)
 x()
+print("Running inference on the quantized model")
+x_quant = Inference(model_quant, path)
+x_quant()
